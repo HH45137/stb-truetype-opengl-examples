@@ -113,7 +113,7 @@ private:
 
 	struct
 	{
-		const uint32_t size = 50;
+		const uint32_t size = 90;
 		const uint32_t atlasWidth = 8192;
 		const uint32_t atlasHeight = 8192;
 		const uint32_t oversampleX = 1;
@@ -257,7 +257,7 @@ void Example::initUniforms()
 
 void Example::initRotatingLabel()
 {
-	const std::wstring text = L"那是我的钱，汤米，我的钱！";
+	const std::wstring text = L"长亭外，古道边，芳草碧连天。";
 
 	std::vector<Vector3> vertices;
 	std::vector<Vector2> uvs;
