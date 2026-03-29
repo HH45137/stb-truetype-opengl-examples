@@ -16,3 +16,4 @@ blend1
 .gitignore~
 ..gitignore.un~
 *.obj
+/projects/.vs
