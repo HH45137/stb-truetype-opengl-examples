@@ -5,6 +5,7 @@
 #include <fstream>
 #include <stb_truetype.h>
 #include <memory>
+#include <codecvt>
 
 
 static struct
@@ -15,36 +16,36 @@ static struct
             #version 330 core
 
             in vec4 position;
-	    in vec2 texCoord0;
+			in vec2 texCoord0;
 
             uniform mat4 worldMatrix;
             uniform mat4 viewProjMatrix;
-	    out vec2 uv0;
+			out vec2 uv0;
 
             void main()
-	    {
-	        gl_Position = viewProjMatrix * worldMatrix * position;
-	        uv0 = texCoord0;
-	    }
-        )";
+			{
+				gl_Position = viewProjMatrix * worldMatrix * position;
+				uv0 = texCoord0;
+			}
+		)";
 	} vertex;
 
 	struct
 	{
 		const char* font = R"(
-	    #version 330 core
+			#version 330 core
 
             uniform sampler2D mainTex;
 
             in vec2 uv0;
-	    out vec4 fragColor;
+			out vec4 fragColor;
 
-            void main()
-	    {
-                vec4 c = texture(mainTex, uv0);
-	        fragColor = vec4(c.r, c.r, c.r, c.r);
-	    }
-	)";
+			void main()
+			{
+				vec4 c = texture(mainTex, uv0);
+				fragColor = vec4(c.r, c.r, c.r, c.r);
+			}
+		)";
 	} fragment;
 } shaders;
 
@@ -57,10 +58,10 @@ struct GlyphInfo
 };
 
 
-class Example final : public ExampleBase
+class TextRenderer final : public ExampleBase
 {
 public:
-	Example(int canvasWidth, int canvasHeight, bool fullScreen) :
+	TextRenderer(int canvasWidth, int canvasHeight, bool fullScreen) :
 		ExampleBase(canvasWidth, canvasHeight, fullScreen)
 	{}
 
@@ -70,6 +71,9 @@ private:
 	void initUniforms();
 	void initRotatingLabel();
 	void initAtlasQuad();
+
+	void InitText(std::wstring w_text);
+	void RenderText(float x, float y, float size, Vector3 color);
 
 	void renderRotatingLabel(float dt);
 	void renderAtlasQuad(float dt);
@@ -103,6 +107,15 @@ private:
 		float angle = 0;
 	} rotatingLabel;
 
+	struct text_s
+	{
+		GLuint vao = 0;
+		GLuint vertexBuffer = 0;
+		GLuint uvBuffer = 0;
+		GLuint indexBuffer = 0;
+		uint16_t indexElementCount = 0;
+	} text_obj;
+
 	struct
 	{
 		GLuint vao = 0;
@@ -126,7 +139,7 @@ private:
 };
 
 
-auto Example::getGlyphInfo(uint32_t character, float offsetX, float offsetY) -> GlyphInfo
+auto TextRenderer::getGlyphInfo(uint32_t character, float offsetX, float offsetY) -> GlyphInfo
 {
 	stbtt_aligned_quad quad;
 
@@ -152,7 +165,7 @@ auto Example::getGlyphInfo(uint32_t character, float offsetX, float offsetY) -> 
 }
 
 
-void Example::initProgram()
+void TextRenderer::initProgram()
 {
 	program.handle = createProgram(shaders.vertex.font, shaders.fragment.font);
 	glUseProgram(program.handle);
@@ -214,7 +227,7 @@ static void LoadFont(
 	stbtt_PackEnd(&context);
 }
 
-void Example::initFont()
+void TextRenderer::initFont()
 {
 	/*    auto fontData = readFile("../zhengyan.ttf");
 		auto atlasData = std::make_unique<uint8_t[]>(font.atlasWidth * font.atlasHeight);
@@ -243,7 +256,7 @@ void Example::initFont()
 }
 
 
-void Example::initUniforms()
+void TextRenderer::initUniforms()
 {
 	auto viewMatrix = Matrix::identity();
 	auto projectionMatrix = Matrix::createPerspective(60, 1.0f * canvasWidth / canvasHeight, 0.05f, 100.0f);
@@ -255,7 +268,7 @@ void Example::initUniforms()
 }
 
 
-void Example::initRotatingLabel()
+void TextRenderer::initRotatingLabel()
 {
 	const std::wstring text = L"长亭外，古道边，芳草碧连天。";
 
@@ -313,7 +326,7 @@ void Example::initRotatingLabel()
 }
 
 
-void Example::initAtlasQuad()
+void TextRenderer::initAtlasQuad()
 {
 	const float vertices[] =
 	{
@@ -351,8 +364,73 @@ void Example::initAtlasQuad()
 	glEnableVertexAttribArray(1);
 }
 
+void TextRenderer::InitText(std::wstring w_text)
+{
+	std::vector<Vector3> vertices;
+	std::vector<Vector2> uvs;
+	std::vector<uint16_t> indexes;
 
-void Example::renderRotatingLabel(float dt)
+	uint16_t lastIndex = 0;
+	float offsetX = 0, offsetY = 0;
+	for (int i = 0; i < w_text.size(); i++)
+	{
+		auto c = static_cast<wchar_t>(w_text[i]);
+
+		auto glyphInfo = getGlyphInfo(c, offsetX, offsetY);
+		offsetX = glyphInfo.offsetX;
+		offsetY = glyphInfo.offsetY;
+
+		vertices.emplace_back(glyphInfo.positions[0]);
+		vertices.emplace_back(glyphInfo.positions[1]);
+		vertices.emplace_back(glyphInfo.positions[2]);
+		vertices.emplace_back(glyphInfo.positions[3]);
+		uvs.emplace_back(glyphInfo.uvs[0]);
+		uvs.emplace_back(glyphInfo.uvs[1]);
+		uvs.emplace_back(glyphInfo.uvs[2]);
+		uvs.emplace_back(glyphInfo.uvs[3]);
+		indexes.push_back(lastIndex);
+		indexes.push_back(lastIndex + 1);
+		indexes.push_back(lastIndex + 2);
+		indexes.push_back(lastIndex);
+		indexes.push_back(lastIndex + 2);
+		indexes.push_back(lastIndex + 3);
+
+		lastIndex += 4;
+	}
+
+	glGenVertexArrays(1, &text_obj.vao);
+	glBindVertexArray(text_obj.vao);
+
+	glGenBuffers(1, &text_obj.vertexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, text_obj.vertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+	glEnableVertexAttribArray(0);
+
+	glGenBuffers(1, &text_obj.uvBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, text_obj.uvBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * uvs.size(), uvs.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+	glEnableVertexAttribArray(1);
+
+	text_obj.indexElementCount = indexes.size();
+	glGenBuffers(1, &text_obj.indexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, text_obj.indexBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t) * text_obj.indexElementCount, indexes.data(), GL_STATIC_DRAW);
+}
+
+void TextRenderer::RenderText(float x, float y, float size, Vector3 color)
+{
+	auto worldMatrix = Matrix::createTranslation(Vector3(x, y, -10));
+	worldMatrix.scaleByVector(Vector3(size, size, size));
+	glUniformMatrix4fv(program.uniforms.worldMatrix, 1, GL_FALSE, worldMatrix.m);
+
+	glBindVertexArray(text_obj.vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, text_obj.indexBuffer);
+	glDrawElements(GL_TRIANGLES, text_obj.indexElementCount, GL_UNSIGNED_SHORT, nullptr);
+}
+
+void TextRenderer::renderRotatingLabel(float dt)
 {
 	rotatingLabel.angle += dt;
 
@@ -367,7 +445,7 @@ void Example::renderRotatingLabel(float dt)
 }
 
 
-void Example::renderAtlasQuad(float dt)
+void TextRenderer::renderAtlasQuad(float dt)
 {
 	atlasQuad.time += dt;
 	auto distance = -10 - 5 * sinf(atlasQuad.time);
@@ -383,17 +461,17 @@ void Example::renderAtlasQuad(float dt)
 }
 
 
-void Example::init()
+void TextRenderer::init()
 {
 	initFont();
-	initRotatingLabel();
-	initAtlasQuad();
+	//initAtlasQuad();
+	InitText(L"我刚从阴沟里探出头喘口气，命运就他妈把屎糊我脸上！");
 	initProgram();
 	initUniforms();
 }
 
 
-void Example::shutdown()
+void TextRenderer::shutdown()
 {
 	glDeleteVertexArrays(1, &rotatingLabel.vao);
 	glDeleteBuffers(1, &rotatingLabel.vertexBuffer);
@@ -407,7 +485,7 @@ void Example::shutdown()
 }
 
 
-void Example::render(float dt)
+void TextRenderer::render(float dt)
 {
 	glViewport(0, 0, canvasWidth, canvasHeight);
 	glClearColor(0, 0.5f, 0.6f, 1);
@@ -434,14 +512,15 @@ void Example::render(float dt)
 	glActiveTexture(GL_TEXTURE0);
 	glUniform1i(program.uniforms.texture, 0);
 
-	renderRotatingLabel(dt);
-	renderAtlasQuad(dt);
+	//renderRotatingLabel(dt);
+	//renderAtlasQuad(dt);
+	RenderText(-5.5, 5, 0.005, Vector3(1, 1, 1));
 }
 
 
 int main()
 {
-	Example example{ 2000, 2000, false };
+	TextRenderer example{ 1280, 720, false };
 	example.run();
 	return 0;
 }

@@ -47,10 +47,10 @@ static struct
 } shaders;
 
 
-class Example final: public ExampleBase
+class TextRenderer final: public ExampleBase
 {
 public:
-    Example(int canvasWidth, int canvasHeight, bool fullScreen):
+    TextRenderer(int canvasWidth, int canvasHeight, bool fullScreen):
         ExampleBase(canvasWidth, canvasHeight, fullScreen)
     {
     }
@@ -96,14 +96,14 @@ private:
 };
 
 
-void Example::initProgram()
+void TextRenderer::initProgram()
 {
     program.handle = createProgram(shaders.vertex.font, shaders.fragment.font);
     glUseProgram(program.handle);
 }
 
 
-void Example::initFont()
+void TextRenderer::initFont()
 {
     auto fontData = readFile("C:/windows/fonts/arial.ttf");
 
@@ -150,7 +150,7 @@ void Example::initFont()
 }
 
 
-void Example::initUniforms()
+void TextRenderer::initUniforms()
 {
     viewProjMatrix = Matrix::createPerspective(60, 1.0f * canvasWidth / canvasHeight, 0.05f, 100.0f);
 
@@ -160,7 +160,7 @@ void Example::initUniforms()
 }
 
 
-void Example::initTextQuad()
+void TextRenderer::initTextQuad()
 {
     const float vertices[] =
     {
@@ -199,7 +199,7 @@ void Example::initTextQuad()
 }
 
 
-void Example::renderTextQuad()
+void TextRenderer::renderTextQuad()
 {
     auto worldMatrix = Matrix::createTranslation(Vector3(0, 0, -15));
     worldMatrix.scaleByVector(Vector3(6, 6, 1));
@@ -210,7 +210,7 @@ void Example::renderTextQuad()
 }
 
 
-void Example::init()
+void TextRenderer::init()
 {
     initFont();
     initTextQuad();
@@ -219,7 +219,7 @@ void Example::init()
 }
 
 
-void Example::shutdown()
+void TextRenderer::shutdown()
 {
     glDeleteVertexArrays(1, &textQuad.vao);
     glDeleteBuffers(1, &textQuad.vertexBuffer);
@@ -229,7 +229,7 @@ void Example::shutdown()
 }
 
 
-void Example::render(float dt)
+void TextRenderer::render(float dt)
 {
     glViewport(0, 0, canvasWidth, canvasHeight);
     glClearColor(0, 0.5f, 0.6f, 1);
@@ -261,7 +261,7 @@ void Example::render(float dt)
 
 int main()
 {
-    Example example{ 800, 600, false };
+    TextRenderer example{ 800, 600, false };
     example.run();
     return 0;
 }
