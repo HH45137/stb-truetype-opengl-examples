@@ -116,10 +116,10 @@ private:
 		const uint32_t size = 50;
 		const uint32_t atlasWidth = 8192;
 		const uint32_t atlasHeight = 8192;
-		const uint32_t oversampleX = 2;
-		const uint32_t oversampleY = 2;
-		const uint32_t firstChar = 0x4E00;
-		const uint32_t charCount = 0x9FFF - 0x4E00 + 1;
+		const uint32_t oversampleX = 1;
+		const uint32_t oversampleY = 1;
+		const uint32_t firstChar = 0x0;
+		const uint32_t charCount = 0x10ffff - firstChar + 1;
 		std::unique_ptr<stbtt_packedchar[]> charInfo;
 		GLuint texture = 0;
 	} font;
@@ -257,7 +257,7 @@ void Example::initUniforms()
 
 void Example::initRotatingLabel()
 {
-	const std::string text = "你好，世界！";
+	const std::wstring text = L"那是我的钱，汤米，我的钱！";
 
 	std::vector<Vector3> vertices;
 	std::vector<Vector2> uvs;
@@ -265,8 +265,10 @@ void Example::initRotatingLabel()
 
 	uint16_t lastIndex = 0;
 	float offsetX = 0, offsetY = 0;
-	for (auto c : text)
+	for (int i = 0; i < text.size(); i++)
 	{
+		auto c = static_cast<wchar_t>(text[i]);
+
 		auto glyphInfo = getGlyphInfo(c, offsetX, offsetY);
 		offsetX = glyphInfo.offsetX;
 		offsetY = glyphInfo.offsetY;
