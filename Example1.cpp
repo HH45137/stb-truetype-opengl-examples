@@ -69,14 +69,12 @@ private:
 	void initProgram();
 	void initFont();
 	void initUniforms();
-	void initRotatingLabel();
+
 	void initAtlasQuad();
+	void renderAtlasQuad(float dt);
 
 	void InitText(std::wstring w_text);
 	void RenderText(float x, float y, float size, Vector3 color);
-
-	void renderRotatingLabel(float dt);
-	void renderAtlasQuad(float dt);
 
 	auto getGlyphInfo(uint32_t character, float offsetX, float offsetY) -> GlyphInfo;
 
@@ -229,21 +227,6 @@ static void LoadFont(
 
 void TextRenderer::initFont()
 {
-	/*    auto fontData = readFile("../zhengyan.ttf");
-		auto atlasData = std::make_unique<uint8_t[]>(font.atlasWidth * font.atlasHeight);
-
-		font.charInfo = std::make_unique<stbtt_packedchar[]>(font.charCount);
-
-		stbtt_pack_context context;
-		if (!stbtt_PackBegin(&context, atlasData.get(), font.atlasWidth, font.atlasHeight, 0, 1, nullptr))
-			DIE("Failed to initialize font");
-
-		stbtt_PackSetOversampling(&context, font.oversampleX, font.oversampleY);
-		if (!stbtt_PackFontRange(&context, fontData.data(), 0, font.size, font.firstChar, font.charCount, font.charInfo.get()))
-			DIE("Failed to pack font");
-
-		stbtt_PackEnd(&context);*/
-
 	std::unique_ptr<uint8_t[]> atlas_data;
 	LoadFont("../zhengyan.ttf", font.size, font.atlasWidth, font.atlasHeight, font.oversampleX, font.oversampleY, font.firstChar, font.charCount, atlas_data, font.charInfo);
 
@@ -265,64 +248,6 @@ void TextRenderer::initUniforms()
 	program.uniforms.viewProjMatrix = glGetUniformLocation(program.handle, "viewProjMatrix");
 	program.uniforms.worldMatrix = glGetUniformLocation(program.handle, "worldMatrix");
 	program.uniforms.texture = glGetUniformLocation(program.handle, "mainTex");
-}
-
-
-void TextRenderer::initRotatingLabel()
-{
-	const std::wstring text = L"长亭外，古道边，芳草碧连天。";
-
-	std::vector<Vector3> vertices;
-	std::vector<Vector2> uvs;
-	std::vector<uint16_t> indexes;
-
-	uint16_t lastIndex = 0;
-	float offsetX = 0, offsetY = 0;
-	for (int i = 0; i < text.size(); i++)
-	{
-		auto c = static_cast<wchar_t>(text[i]);
-
-		auto glyphInfo = getGlyphInfo(c, offsetX, offsetY);
-		offsetX = glyphInfo.offsetX;
-		offsetY = glyphInfo.offsetY;
-
-		vertices.emplace_back(glyphInfo.positions[0]);
-		vertices.emplace_back(glyphInfo.positions[1]);
-		vertices.emplace_back(glyphInfo.positions[2]);
-		vertices.emplace_back(glyphInfo.positions[3]);
-		uvs.emplace_back(glyphInfo.uvs[0]);
-		uvs.emplace_back(glyphInfo.uvs[1]);
-		uvs.emplace_back(glyphInfo.uvs[2]);
-		uvs.emplace_back(glyphInfo.uvs[3]);
-		indexes.push_back(lastIndex);
-		indexes.push_back(lastIndex + 1);
-		indexes.push_back(lastIndex + 2);
-		indexes.push_back(lastIndex);
-		indexes.push_back(lastIndex + 2);
-		indexes.push_back(lastIndex + 3);
-
-		lastIndex += 4;
-	}
-
-	glGenVertexArrays(1, &rotatingLabel.vao);
-	glBindVertexArray(rotatingLabel.vao);
-
-	glGenBuffers(1, &rotatingLabel.vertexBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, rotatingLabel.vertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * vertices.size(), vertices.data(), GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(0);
-
-	glGenBuffers(1, &rotatingLabel.uvBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, rotatingLabel.uvBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * uvs.size(), uvs.data(), GL_STATIC_DRAW);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(1);
-
-	rotatingLabel.indexElementCount = indexes.size();
-	glGenBuffers(1, &rotatingLabel.indexBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rotatingLabel.indexBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t) * rotatingLabel.indexElementCount, indexes.data(), GL_STATIC_DRAW);
 }
 
 
@@ -430,20 +355,6 @@ void TextRenderer::RenderText(float x, float y, float size, Vector3 color)
 	glDrawElements(GL_TRIANGLES, text_obj.indexElementCount, GL_UNSIGNED_SHORT, nullptr);
 }
 
-void TextRenderer::renderRotatingLabel(float dt)
-{
-	rotatingLabel.angle += dt;
-
-	auto worldMatrix = Matrix::createTranslation(Vector3(0, 5, -30));
-	worldMatrix.rotateY(rotatingLabel.angle);
-	worldMatrix.scaleByVector(Vector3(0.05f, 0.05f, 1));
-	glUniformMatrix4fv(program.uniforms.worldMatrix, 1, GL_FALSE, worldMatrix.m);
-
-	glBindVertexArray(rotatingLabel.vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rotatingLabel.indexBuffer);
-	glDrawElements(GL_TRIANGLES, rotatingLabel.indexElementCount, GL_UNSIGNED_SHORT, nullptr);
-}
-
 
 void TextRenderer::renderAtlasQuad(float dt)
 {
@@ -464,7 +375,7 @@ void TextRenderer::renderAtlasQuad(float dt)
 void TextRenderer::init()
 {
 	initFont();
-	//initAtlasQuad();
+	initAtlasQuad();
 	InitText(L"我刚从阴沟里探出头喘口气，命运就他妈把屎糊我脸上！");
 	initProgram();
 	initUniforms();
@@ -512,8 +423,7 @@ void TextRenderer::render(float dt)
 	glActiveTexture(GL_TEXTURE0);
 	glUniform1i(program.uniforms.texture, 0);
 
-	//renderRotatingLabel(dt);
-	//renderAtlasQuad(dt);
+	renderAtlasQuad(dt);
 	RenderText(-5.5, 5, 0.005, Vector3(1, 1, 1));
 }
 
