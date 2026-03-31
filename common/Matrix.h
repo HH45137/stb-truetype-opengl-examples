@@ -18,6 +18,7 @@ public:
     static auto identity() -> Matrix;
 
     static auto createPerspective(float fieldOfView, float aspectRatio, float znear, float zfar) -> Matrix;
+    static auto createOrthographic(float left, float right, float bottom, float top, float znear, float zfar) -> Matrix;
     static auto createTranslation(const Vector3& translation) -> Matrix;
     static auto createScale(const Vector3& scale) -> Matrix;
     static auto createRotationY(float radianAngle) -> Matrix;

@@ -65,6 +65,26 @@ auto Matrix::createPerspective(float fieldOfView, float aspectRatio, float znear
 }
 
 
+auto Matrix::createOrthographic(float left, float right, float bottom, float top, float znear, float zfar) -> Matrix
+{
+    auto rl = right - left;
+    auto tb = top - bottom;
+    auto fn = zfar - znear;
+
+    Matrix result;
+    memset(&result.m, 0, MatrixSize);
+    result.m[0] = 2.0f / rl;
+    result.m[5] = 2.0f / tb;
+    result.m[10] = -2.0f / fn;
+    result.m[12] = -(right + left) / rl;
+    result.m[13] = -(top + bottom) / tb;
+    result.m[14] = -(zfar + znear) / fn;
+    result.m[15] = 1.0f;
+
+    return result;
+}
+
+
 auto Matrix::createTranslation(const Vector3& translation) -> Matrix
 {
     Matrix result;
