@@ -74,7 +74,7 @@ private:
 	void renderAtlasQuad(float dt);
 
 	void InitText(std::wstring w_text);
-	void RenderText(float x, float y, float pixelSize, Vector3 color);
+	void RenderText(float x, float y, float size, Vector3 color);
 
 	auto getGlyphInfo(uint32_t character, float offsetX, float offsetY) -> GlyphInfo;
 
@@ -243,8 +243,8 @@ void TextRenderer::initUniforms()
 {
 	auto viewMatrix = Matrix::identity();
 	auto projectionMatrix = Matrix::createOrthographic(
-		0.0f, static_cast<float>(canvasWidth),   // left, right
-		0.0f, static_cast<float>(canvasHeight),  // bottom, top (Y轴向上为正)
+		0.0f, static_cast<float>(canvasWidth),
+		0.0f, static_cast<float>(canvasHeight),
 		0.05f, 100.0f);
 	viewProjMatrix = projectionMatrix * viewMatrix;
 
@@ -347,14 +347,11 @@ void TextRenderer::InitText(std::wstring w_text)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t) * text_obj.indexElementCount, indexes.data(), GL_STATIC_DRAW);
 }
 
-void TextRenderer::RenderText(float x, float y, float pixelSize, Vector3 color)
+void TextRenderer::RenderText(float x, float y, float size, Vector3 color)
 {
-	// 初始化文本
 	InitText(L"我刚从阴沟里探出头喘口气，命运就他妈把屎糊我脸上！");
 
-	// 世界变换：先缩放后平移（矩阵乘法顺序：右乘先应用）
-	// 先创建缩放矩阵，再乘以平移矩阵 - 这样是先缩放后平移
-	auto scaleMatrix = Matrix::createScale(Vector3(pixelSize, pixelSize, pixelSize));
+	auto scaleMatrix = Matrix::createScale(Vector3(size, size, size));
 	auto translationMatrix = Matrix::createTranslation(Vector3(x, y, -1));
 	auto worldMatrix = scaleMatrix * translationMatrix;
 	glUniformMatrix4fv(program.uniforms.worldMatrix, 1, GL_FALSE, worldMatrix.m);
@@ -433,8 +430,7 @@ void TextRenderer::render(float dt)
 	glUniform1i(program.uniforms.texture, 0);
 
 	renderAtlasQuad(dt);
-	// 参数含义：x=100, y=100 为像素坐标，1.0 为字体像素大小
-	RenderText(100, 100, 0.5f, Vector3(1, 1, 1));
+	RenderText(100, 100, .5, Vector3(1, 1, 1));
 }
 
 
